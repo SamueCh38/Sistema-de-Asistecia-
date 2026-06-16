@@ -3,7 +3,8 @@ CREATE DATABASE IF NOT EXISTS sistema_asistencia;
 USE sistema_asistencia;
 
 -- 2. Crear tabla de Departamentos (con sus horarios)
-CREATE TABLE departamentos (
+DROP TABLE IF EXISTS departamentos; 
+CREATE TABLE IF NOT EXISTS departamentos (
     id INT AUTO_INCREMENT PRIMARY KEY,
     nombre VARCHAR(50) NOT NULL,
     hora_entrada TIME NOT NULL,
@@ -11,7 +12,8 @@ CREATE TABLE departamentos (
 );
 
 -- 3. Crear tabla de Empleados
-CREATE TABLE empleados (
+DROP TABLE IF EXISTS empleados;
+CREATE TABLE IF NOT EXISTS empleados (
     id INT AUTO_INCREMENT PRIMARY KEY,
     codigo_empleado VARCHAR(10) UNIQUE NOT NULL, -- Aquí guardaremos "001", "002", etc.
     nombre_completo VARCHAR(100) NOT NULL,
@@ -21,7 +23,8 @@ CREATE TABLE empleados (
 );
 
 -- 4. Crear tabla de Registro de Asistencia Diaria
-CREATE TABLE asistencia (
+DROP TABLE IF EXISTS asistencia;
+CREATE TABLE IF NOT EXISTS asistencia (
     id INT AUTO_INCREMENT PRIMARY KEY,
     empleado_id INT NOT NULL,
     fecha DATE NOT NULL,
@@ -35,7 +38,8 @@ CREATE TABLE asistencia (
 );
 
 -- 5. Crear tabla de Novedades (Permisos e Incapacidades)
-CREATE TABLE novedades (
+DROP TABLE IF EXISTS novedades; 
+CREATE TABLE IF NOT EXISTS novedades (
     id INT AUTO_INCREMENT PRIMARY KEY,
     empleado_id INT NOT NULL,
     tipo_novedad ENUM('Permiso Personal', 'Vacaciones', 'Incapacidad Médica') NOT NULL,
