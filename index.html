@@ -100,25 +100,26 @@
                         <h2>Registro de Novedades</h2>
                         <form id="form-novedades" class="form-container w-50">
                             <div class="input-group">
-                                <label>Empleado (ID o Nombre)</label>
-                                <input type="text" required>
+                                <label for="nov-empleado">Empleado (ID o Nombre)</label>
+                                <input type="text" id="nov-empleado" placeholder="Ej. Nombre o 003" required>
                             </div>
                             <div class="input-group">
-                                <label>Tipo de Novedad</label>
-                                <select required>
-                                    <option>Permiso Personal</option>
-                                    <option>Vacaciones</option>
-                                    <option>Incapacidad Médica</option>
+                                <label for="nov-tipo">Tipo de Novedad</label>
+                                <select id="nov-tipo" required>
+                                    <option value="Permiso Personal">Permiso Personal</option>
+                                    <option value="Vacaciones">Vacaciones</option>
+                                    <option value="Incapacidad Médica">Incapacidad Médica</option>
+                                    <option value="Falta Injustificada">Falta Injustificada</option>
                                 </select>
                             </div>
                             <div class="grid-2-col">
                                 <div class="input-group">
-                                    <label>Fecha Inicio</label>
-                                    <input type="date" required>
+                                    <label for="nov-inicio">Fecha Inicio</label>
+                                    <input type="date" id="nov-inicio" required>
                                 </div>
                                 <div class="input-group">
-                                    <label>Fecha Fin</label>
-                                    <input type="date" required>
+                                    <label for="nov-fin">Fecha Fin</label>
+                                    <input type="date" id="nov-fin" required>
                                 </div>
                             </div>
                             <button type="submit" class="btn btn-primary">Registrar Novedad</button>
