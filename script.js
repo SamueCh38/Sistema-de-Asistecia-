@@ -1,17 +1,5 @@
-// --- CONFIGURACIÓN DE HORARIOS POR DEPARTAMENTO ---
-// entradaMin y salidaMin representan la hora convertida a minutos (Ej. 08:00 AM = 8 * 60 = 480)
-const horariosDepto = {
-    "Recursos Humanos": { texto: "08:00 a 17:00", entradaMin: 480, salidaMin: 1020 },
-    "Tecnología":       { texto: "09:00 a 18:00", entradaMin: 540, salidaMin: 1080 },
-    "Ventas":           { texto: "10:00 a 19:00", entradaMin: 600, salidaMin: 1140 },
-    "Operaciones":      { texto: "07:00 a 16:00", entradaMin: 420, salidaMin:  960 }
-};
-
-// --- BASE DE DATOS SIMULADA ---
-let empleadosBD = [
-    { id: "001", nombre: "Ana Silva", depto: "Tecnología", entradaHoy: "08:50:00", salidaHoy: "", retraso: "No", difSalida: "--", estado: "Presente", badge: "badge-success" },
-    { id: "002", nombre: "Carlos Ruiz", depto: "Ventas", entradaHoy: "10:15:00", salidaHoy: "", retraso: "Sí (15 min)", difSalida: "--", estado: "Retardo", badge: "badge-warning" }
-];
+// La dirección donde está escuchando nuestro servidor Python
+const API_URL = 'http://localhost:5000/api';
 
 // --- 1. NAVEGACIÓN DEL MENÚ ---
 const menuBtns = document.querySelectorAll('.menu-btn');
@@ -31,83 +19,98 @@ menuBtns.forEach(btn => {
 function actualizarReloj() {
     const relojEl = document.getElementById('reloj');
     const ahora = new Date();
-    let horas = ahora.getHours().toString().padStart(2, '0');
-    let minutos = ahora.getMinutes().toString().padStart(2, '0');
-    let segundos = ahora.getSeconds().toString().padStart(2, '0');
-    relojEl.textContent = `${horas}:${minutos}:${segundos}`;
+    relojEl.textContent = ahora.toTimeString().split(' ')[0];
 }
 setInterval(actualizarReloj, 1000);
-actualizarReloj(); 
+actualizarReloj();
 
-// --- 3. ACTUALIZAR TABLAS DINÁMICAMENTE ---
-function renderizarTablas() {
-    const tbodyDir = document.getElementById('tabla-directorio');
-    const tbodyRep = document.getElementById('tabla-reportes');
-    
-    tbodyDir.innerHTML = '';
-    tbodyRep.innerHTML = '';
+// --- 3. CARGAR DATOS DESDE LA BASE DE DATOS (MYSQL VÍA PYTHON) ---
+async function cargarDatosBD() {
+    try {
+        console.log("Conectando al servidor...");
+        const respuesta = await fetch(`${API_URL}/datos-iniciales`);
+        
+        if (!respuesta.ok) throw new Error("No se pudo obtener respuesta del servidor");
+        
+        const datos = await respuesta.json();
+        
+        const tbodyDir = document.getElementById('tabla-directorio');
+        const tbodyRep = document.getElementById('tabla-reportes');
+        
+        tbodyDir.innerHTML = '';
+        tbodyRep.innerHTML = '';
 
-    empleadosBD.forEach(emp => {
-        // Tabla de Directorio
-        tbodyDir.innerHTML += `
-            <tr>
-                <td><strong>${emp.id}</strong></td>
-                <td>${emp.nombre}</td>
-                <td>${emp.depto}</td>
-                <td><button class="btn btn-small">Editar</button></td>
-            </tr>
-        `;
+        // Llenar tabla del Directorio de Empleados
+        datos.directorio.forEach(emp => {
+            tbodyDir.innerHTML += `
+                <tr>
+                    <td><strong>${emp.id}</strong></td>
+                    <td>${emp.nombre}</td>
+                    <td>${emp.depto}</td>
+                    <td><button class="btn btn-small">Editar</button></td>
+                </tr>
+            `;
+        });
 
-        // Tabla de Reportes Diario
-        const horarioTexto = horariosDepto[emp.depto].texto;
+        // Llenar tabla de Reportes de Asistencia
+        datos.reporte.forEach(emp => {
+            let badgeColor = "badge-success";
+            if (emp.Estado === "Retardo") badgeColor = "badge-warning";
+            else if (emp.Estado === "Sin registro") badgeColor = "badge-warning";
 
-        tbodyRep.innerHTML += `
-            <tr>
-                <td>${emp.id}</td>
-                <td><strong>${emp.nombre}</strong><br><small class="text-muted">${emp.depto}</small></td>
-                <td>${horarioTexto}</td>
-                <td>${emp.entradaHoy ? emp.entradaHoy : '--:--:--'}</td>
-                <td style="color: ${emp.retraso.includes('Sí') ? '#ef4444' : '#10b981'}">${emp.retraso ? emp.retraso : '--'}</td>
-                <td>${emp.salidaHoy ? emp.salidaHoy : '--:--:--'}</td>
-                <td>${emp.difSalida}</td>
-                <td><span class="badge ${emp.badge}">${emp.estado}</span></td>
-            </tr>
-        `;
-    });
+            tbodyRep.innerHTML += `
+                <tr>
+                    <td>${emp.id_emp}</td>
+                    <td><strong>${emp.Empleado}</strong><br><small class="text-muted">${emp.Departamento}</small></td>
+                    <td>${emp.Horario}</td>
+                    <td>${emp.Entrada}</td>
+                    <td style="color: ${emp.Retraso.includes('Sí') ? '#ef4444' : '#10b981'}">${emp.Retraso}</td>
+                    <td>${emp.Salida}</td>
+                    <td>${emp.Dif_Salida}</td>
+                    <td><span class="badge ${badgeColor}">${emp.Estado}</span></td>
+                </tr>
+            `;
+        });
+        console.log("¡Datos cargados exitosamente!");
+        
+    } catch (error) {
+        console.error("Error conectando al backend:", error);
+    }
 }
-renderizarTablas();
 
-// --- 4. GUARDAR NUEVO EMPLEADO ---
-document.getElementById('form-empleado').addEventListener('submit', function(e) {
+// Ejecutar la carga de datos tan pronto como se abre la página
+cargarDatosBD();
+
+// --- 4. GUARDAR NUEVO EMPLEADO EN BASE DE DATOS ---
+document.getElementById('form-empleado').addEventListener('submit', async function(e) {
     e.preventDefault(); 
+    const nombre = document.getElementById('emp-nombre').value;
+    const depto = document.getElementById('emp-depto').value;
     
-    const nombreInput = document.getElementById('emp-nombre').value;
-    const deptoInput = document.getElementById('emp-depto').value;
-    
-    const nuevoNumero = empleadosBD.length + 1;
-    const nuevoId = nuevoNumero.toString().padStart(3, '0');
-
-    const nuevoEmpleado = {
-        id: nuevoId,
-        nombre: nombreInput,
-        depto: deptoInput,
-        entradaHoy: "",
-        salidaHoy: "",
-        retraso: "",
-        difSalida: "--",
-        estado: "Sin registro",
-        badge: "badge-warning" 
-    };
-
-    empleadosBD.push(nuevoEmpleado);
-    renderizarTablas();
-    
-    alert(`¡Empleado guardado exitosamente!\nSu ID para registrar asistencia es: ${nuevoId}\nSu horario será: ${horariosDepto[deptoInput].texto}`);
-    this.reset(); 
+    try {
+        const res = await fetch(`${API_URL}/empleados`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ nombre, depto })
+        });
+        const data = await res.json();
+        
+        if(data.success) {
+            alert(`¡Empleado guardado exitosamente!\nSu ID para registrar asistencia es: ${data.nuevo_id}`);
+            this.reset(); 
+            cargarDatosBD(); // Recargar las tablas para ver al nuevo empleado
+        } else {
+            alert(`Hubo un problema: ${data.error}`);
+        }
+    } catch (error) {
+        console.error("Error al guardar empleado:", error);
+        alert("❌ No se pudo guardar. Asegúrate de que el servidor Python esté encendido.");
+    }
 });
 
-// --- 5. VALIDAR ASISTENCIA Y CALCULAR RETRASOS/SALIDAS ---
-function registrarMarca(tipo) {
+// --- 5. REGISTRAR ENTRADA Y SALIDA EN BASE DE DATOS ---
+// Esta función es llamada por los botones del HTML (onclick="registrarMarca(...)")
+async function registrarMarca(tipo) {
     const inputId = document.getElementById('emp-id').value;
     const msgEl = document.getElementById('mensaje-asistencia');
 
@@ -117,68 +120,67 @@ function registrarMarca(tipo) {
         return;
     }
 
-    const empleado = empleadosBD.find(emp => emp.id === inputId);
-
-    if (empleado) {
-        msgEl.style.color = '#10b981'; 
+    try {
+        const res = await fetch(`${API_URL}/asistencia`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id: inputId, tipo: tipo })
+        });
         
-        const ahora = new Date();
-        const horaFormateada = document.getElementById('reloj').textContent;
-        const minutosActuales = (ahora.getHours() * 60) + ahora.getMinutes();
-        
-        // Obtener el horario correspondiente al departamento del empleado
-        const horario = horariosDepto[empleado.depto];
+        const data = await res.json();
 
-        if (tipo === 'Entrada') {
-            empleado.entradaHoy = horaFormateada;
-            
-            // Evaluar Entrada
-            if (minutosActuales > horario.entradaMin) {
-                const minutosRetraso = minutosActuales - horario.entradaMin;
-                empleado.retraso = `Sí (+${minutosRetraso} min)`;
-                empleado.estado = "Retardo";
-                empleado.badge = "badge-warning";
-            } else {
-                empleado.retraso = "No (A tiempo)";
-                empleado.estado = "Presente";
-                empleado.badge = "badge-success";
-            }
-
-        } else if (tipo === 'Salida') {
-            empleado.salidaHoy = horaFormateada;
-            
-            // Evaluar Salida
-            const diffSalida = minutosActuales - horario.salidaMin;
-            
-            if (diffSalida > 0) {
-                empleado.difSalida = `<span style="color: #3b82f6">+${diffSalida} min (Tarde)</span>`;
-            } else if (diffSalida < 0) {
-                empleado.difSalida = `<span style="color: #ef4444">${diffSalida} min (Antes)</span>`;
-            } else {
-                empleado.difSalida = `<span style="color: #10b981">Exacto</span>`;
-            }
-
-            empleado.estado = "Jornada Finalizada";
-            empleado.badge = "badge-success";
+        if (data.success) {
+            msgEl.style.color = '#10b981'; 
+            msgEl.innerHTML = `✅ ${tipo} de <strong>${data.nombre}</strong> registrada a las ${data.hora}`;
+            document.getElementById('emp-id').value = '';
+            cargarDatosBD(); // Actualizar la tabla de reportes al instante
+        } else {
+            msgEl.style.color = '#ef4444'; 
+            msgEl.innerHTML = `❌ Error: ${data.mensaje}`;
         }
-
-        renderizarTablas();
-
-        msgEl.innerHTML = `✅ ${tipo} de <strong>${empleado.nombre}</strong> registrada a las ${horaFormateada}`;
-        document.getElementById('emp-id').value = '';
-    } else {
+    } catch (error) {
+        console.error("Error al registrar asistencia:", error);
         msgEl.style.color = '#ef4444'; 
-        msgEl.innerHTML = `❌ Error: El ID <strong>${inputId}</strong> no existe en el sistema.`;
+        msgEl.textContent = "❌ Servidor inalcanzable. Revisa si app.py está ejecutándose.";
     }
 
-    setTimeout(() => {
-        msgEl.textContent = '';
-    }, 4500);
+    // Borrar el mensaje después de 4.5 segundos
+    setTimeout(() => { msgEl.textContent = ''; }, 4500);
 }
 
-// --- 6. PREVENIR ENVÍO DE FORMULARIO DE NOVEDADES ---
-document.getElementById('form-novedades').addEventListener('submit', function(e) {
+// --- 6. REGISTRAR NOVEDADES EN BASE DE DATOS ---
+document.getElementById('form-novedades').addEventListener('submit', async function(e) {
     e.preventDefault();
-    alert('Novedad registrada correctamente.');
-    this.reset();
+    
+    // Obtenemos los valores de los inputs. 
+    // *Asegúrate de que estos IDs coincidan con los de tu index.html*
+    const empleado = document.getElementById('nov-empleado').value;
+    const tipo = document.getElementById('nov-tipo').value;
+    const fecha_inicio = document.getElementById('nov-inicio').value;
+    const fecha_fin = document.getElementById('nov-fin').value;
+
+    try {
+        const res = await fetch(`${API_URL}/novedades`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+                empleado: empleado, 
+                tipo: tipo, 
+                fecha_inicio: fecha_inicio, 
+                fecha_fin: fecha_fin 
+            })
+        });
+        
+        const data = await res.json();
+
+        if (data.success) {
+            alert(`✅ ${data.mensaje}`);
+            this.reset(); // Limpia el formulario automáticamente tras guardar
+        } else {
+            alert(`❌ Error: ${data.mensaje}`);
+        }
+    } catch (error) {
+        console.error("Error al registrar novedad:", error);
+        alert("❌ Error de conexión con el servidor.");
+    }
 });
